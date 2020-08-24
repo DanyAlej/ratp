@@ -59,7 +59,7 @@ Se realizo el script install.js que permite la descarga en dispositivos Android 
 
 Aquí hay una foto de la app funcionando desde mi Iphone
 
-![F5](/readmeImages/f5.2.PNG.png)
+![F5](/readmeImages/f5.2.PNG)
 
  
 ## F6
