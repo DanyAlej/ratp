@@ -75,5 +75,5 @@ https://taller1-paris.web.app/
 
 Por último este es un reporte actualizado de lighthouse y sus puntajes de la aplicación.
 
-![Lighthouse](/readmeImages/lighhousefinal.png)
+![Lighthouse](/readmeImages/lighthousefinal.png)
 
