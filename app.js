@@ -11,6 +11,30 @@
         addDialog: document.querySelector('.dialog-container')
     };
 
+    var indexDB;
+      var request = window.indexedDB.open('preferences', 1);
+
+        request.onupgradeneeded = function (event) {
+          indexDB = request.result;
+          console.log('onupgradeneeded');
+            var db = event.target.result;
+            var objectStore = db.createObjectStore("preferences", { keyPath: "id", autoIncrement: true });
+            //F1: Ingresar la estacion por defecto al indexdb
+            objectStore.add({ key: 'metros/1/bastille/A', label: 'Bastille, Direction La Défense' })
+        }
+      request.onsuccess = function () {
+        console.log(request);
+          indexDB = request.result;
+        var objectStore = indexDB.transaction('preferences').objectStore('preferences');
+        objectStore.openCursor().onsuccess = function (event) {
+          var cursor = event.target.result;
+          if (cursor) {
+              app.selectedTimetables.push({ key: cursor.value.key, label: cursor.value.label });
+              app.getSchedule(cursor.value.key, cursor.value.label);
+              cursor.continue();
+          }
+        };
+      }
 
     /*****************************************************************************
      *
@@ -41,6 +65,7 @@
         app.getSchedule(key, label);
         app.selectedTimetables.push({key: key, label: label});
         app.toggleAddDialog(false);
+        app.savePreferences(key, label);
     });
 
     document.getElementById('butAddCancel').addEventListener('click', function () {
@@ -69,7 +94,6 @@
 
     app.updateTimetableCard = function (data) {
         var key = data.key;
-        var dataLastUpdated = new Date(data.created);
         var schedules = data.schedules;
         var card = app.visibleCards[key];
 
@@ -127,20 +151,38 @@
                 }
             } else {
                 // Return the initial weather forecast since no data is available.
-                app.updateTimetableCard(initialStationTimetable);
+               app.getScheduleFromCache(key).then((responseJson) => {
+               var result = {};
+               result.key = key;
+               result.label = label;
+               result.created = responseJson._metadata.date;
+               result.schedules = responseJson.result.schedules;
+               console.log("from cache:", result.key, JSON.stringify(result.schedules));
+               app.updateTimetableCard(result);
+            }).catch((err) => {
+              console.info('No esta disponible en cache');
+            });
             }
         };
         request.open('GET', url);
         request.send();
     };
 
+    app.savePreferences = function(key, label) {
+      console.log('saving preferences');
+      indexDB.transaction(['preferences'], 'readwrite')
+        .objectStore('preferences')
+        .add({key: key, label: label});
+    }
     // Iterate all of the cards and attempt to get the latest timetable data
+    
     app.updateSchedules = function () {
         var keys = Object.keys(app.visibleCards);
         keys.forEach(function (key) {
             app.getSchedule(key);
         });
     };
+
 
     /*
      * Fake timetable data that is presented when the user first uses the app,
@@ -168,7 +210,29 @@
 
     };
 
+    app.getScheduleFromCache = function(key) {
 
+        if (!('caches' in window)) {
+          console.log('No caches')
+          return null;
+        }
+        var url = 'https://api-ratp.pierre-grimaud.fr/v3/schedules/' + key;
+        console.log('SI caches');
+
+        return caches.match(url)
+          .then((response) => {
+        if (response) {
+          console.log(response);
+          console.log('response');
+          return response.json();
+        }
+          return null;
+        })
+        .catch((err) => {
+          console.error('Error getting data from cache', err);
+          return null;
+      }); 
+    };
     /************************************************************************
      *
      * Code required to start the app
